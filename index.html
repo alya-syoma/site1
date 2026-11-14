@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Він дивиться на тебе</title>
+<meta name="description" content="Котик, який стежить за тобою. Нахили телефон, бупни в ніс, погладь.">
+<meta property="og:title" content="Він дивиться на тебе 🐈">
+<meta property="og:description" content="Нахили телефон. Бупни в ніс. Тільки не тицяй забагато разів.">
+<meta property="og:image" content="og.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#120b08">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #120b08;
+    --ink: #f7ecdf;
+    --muted: #a08a78;
+    --glow: #ff6a1f;
+    --chip: rgba(255,255,255,.06);
+    --chip-line: rgba(255,255,255,.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  .stage {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    height: 100dvh;
+  }
+  .glow {
+    position: fixed; inset: -20%;
+    background: radial-gradient(closest-side at var(--gx,50%) var(--gy,58%), rgba(255,106,31,.32), rgba(255,60,20,.10) 45%, transparent 75%);
+    pointer-events: none;
+    transition: background .2s;
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; opacity: .07; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+  .tag { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .tag b { color: var(--glow); font-weight: 600; }
+  .icon-btn {
+    background: var(--chip); border: 1px solid var(--chip-line); color: var(--ink);
+    border-radius: 999px; height: 34px; min-width: 34px; padding: 0 12px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  main { position: relative; display: grid; place-items: center; min-height: 0; }
+  h1 {
+    position: absolute; top: 2vh; left: 0; right: 0; text-align: center; z-index: 2;
+    font-family: "Unbounded", system-ui, sans-serif; font-weight: 700;
+    font-size: clamp(30px, 7.4vw, 76px); line-height: .98; letter-spacing: -.02em;
+    pointer-events: none;
+  }
+  h1 em { font-style: normal; color: var(--glow); }
+  .cat-wrap { position: relative; width: min(92vw, 62vh, 560px); aspect-ratio: 1; margin-top: 12vh; }
+  #cat { width: 100%; height: 100%; overflow: visible; touch-action: none; filter: drop-shadow(0 0 28px rgba(255,98,30,.35)); }
+  .shake { animation: shake .45s linear; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0) } 15% { transform: translate(-9px,3px) } 30% { transform: translate(8px,-4px) }
+    45% { transform: translate(-7px,-2px) } 60% { transform: translate(6px,4px) } 75% { transform: translate(-4px,1px) }
+  }
+  .bubble {
+    position: absolute; left: 50%; top: 4%; transform: translate(-50%, 0) scale(.6); opacity: 0;
+    background: var(--ink); color: #1b100a; font-family: "Unbounded", sans-serif; font-weight: 700; font-size: clamp(14px, 3.8vw, 22px);
+    padding: 10px 16px; border-radius: 18px; white-space: nowrap; pointer-events: none; z-index: 3;
+    transition: transform .25s cubic-bezier(.3,1.6,.5,1), opacity .2s;
+  }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; border: 8px solid transparent; border-top-color: var(--ink); border-bottom: 0; transform: translateX(-50%); }
+  .bubble.on { opacity: 1; transform: translate(-50%, -10px) scale(1); }
+  .fx { position: fixed; pointer-events: none; z-index: 4; font-family: "Unbounded", sans-serif; font-weight: 700; animation: rise 1.6s ease-out forwards; }
+  @keyframes rise { 0% { opacity: 0; transform: translate(0,0) scale(.5) } 15% { opacity: 1 } 100% { opacity: 0; transform: translate(var(--dx,0), -120px) scale(1.2) rotate(var(--rot,0deg)) } }
+  footer { display: grid; gap: 10px; position: relative; z-index: 2; }
+  .hints { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .hints span { font-size: 11px; padding: 6px 10px; border-radius: 999px; background: var(--chip); border: 1px solid var(--chip-line); color: #d9c6b4; }
+  .bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+  .bar b { color: var(--ink); font-weight: 600; }
+  #fish {
+    position: fixed; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 128px);
+    width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; z-index: 5;
+    background: var(--chip); border: 1px solid var(--chip-line); touch-action: none; cursor: grab;
+    transition: transform .3s cubic-bezier(.3,1.5,.5,1), opacity .3s;
+  }
+  #fish.drag { transition: none; cursor: grabbing; background: transparent; border-color: transparent; font-size: 46px; }
+  #fish.gone { opacity: 0; transform: scale(.2); pointer-events: none; }
+  #fish small { position: absolute; bottom: -18px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  #fish.drag small { display: none; }
+  .gate {
+    position: fixed; inset: 0; z-index: 10; display: grid; place-items: end center;
+    padding: 0 16px calc(max(24px, env(safe-area-inset-bottom)) + 24px);
+    background: linear-gradient(to top, rgba(18,11,8,.92) 0%, rgba(18,11,8,.2) 45%, transparent 70%);
+  }
+  .gate button {
+    font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 17px; color: #1b100a; background: var(--ink);
+    border: 0; border-radius: 999px; padding: 18px 28px; cursor: pointer; box-shadow: 0 0 40px rgba(255,106,31,.45);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(255,106,31,.7) } }
+  .gate.hide { display: none; }
+  @media (prefers-reduced-motion: reduce) { .gate button { animation: none } }
+</style>
+</head>
+<body>
+<div class="glow" id="glow"></div>
+<div class="grain"></div>
+
+<div class="stage" id="stage">
+  <header>
+    <div class="tag">кіт_<b>онлайн</b> · стежить</div>
+    <button class="icon-btn" id="sound" aria-label="Звук">🔊</button>
+  </header>
+
+  <main>
+    <h1>Він дивиться<br><em>на тебе.</em></h1>
+    <div class="cat-wrap">
+      <div class="bubble" id="bubble"></div>
+      <svg id="cat" viewBox="0 0 400 400" aria-label="Рудий кіт, який стежить за тобою">
+        <defs>
+          <radialGradient id="furG" cx="50%" cy="42%" r="62%">
+            <stop offset="0" stop-color="#f5a456"/>
+            <stop offset=".65" stop-color="#e3802f"/>
+            <stop offset="1" stop-color="#b85a1c"/>
+          </radialGradient>
+          <radialGradient id="bodyG" cx="50%" cy="20%" r="80%">
+            <stop offset="0" stop-color="#d97a2c"/>
+            <stop offset="1" stop-color="#8f4313"/>
+          </radialGradient>
+          <radialGradient id="irisG" cx="50%" cy="45%" r="60%">
+            <stop offset="0" stop-color="#e9f27a"/>
+            <stop offset=".55" stop-color="#b6d64a"/>
+            <stop offset="1" stop-color="#6f9a22"/>
+          </radialGradient>
+          <clipPath id="clipBody"><rect x="-50" y="0" width="500" height="400"/></clipPath>
+          <clipPath id="clipL"><ellipse cx="148" cy="205" rx="30" ry="31"/></clipPath>
+          <clipPath id="clipR"><ellipse cx="252" cy="205" rx="30" ry="31"/></clipPath>
+        </defs>
+
+        <g id="body" clip-path="url(#clipBody)">
+          <path d="M34,400 C44,328 118,296 200,296 C282,296 356,328 366,400 Z" fill="url(#bodyG)"/>
+          <ellipse cx="200" cy="392" rx="66" ry="58" fill="#f6d4ad"/>
+        </g>
+
+        <g id="head">
+          <g id="earL"><path d="M78,175 L70,55 Q78,47 92,55 L165,108 Z" fill="#d9752a"/><path d="M92,160 L88,80 L145,116 Z" fill="#f2a3a0"/></g>
+          <g id="earR"><path d="M322,175 L330,55 Q322,47 308,55 L235,108 Z" fill="#d9752a"/><path d="M308,160 L312,80 L255,116 Z" fill="#f2a3a0"/></g>
+
+          <path d="M200,92 C285,92 338,148 334,222 L352,240 L332,250 L348,268 L322,272 C300,318 255,338 200,338 C145,338 100,318 78,272 L52,268 L68,250 L48,240 L66,222 C62,148 115,92 200,92 Z" fill="url(#furG)"/>
+          <path d="M66,232 Q92,234 108,244 Q90,246 70,244 Z M334,232 Q308,234 292,244 Q310,246 330,244 Z M70,258 Q92,258 104,264 Q88,268 74,266 Z M330,258 Q308,258 296,264 Q312,268 326,266 Z" fill="#b65a1b" opacity=".8"/>
+
+          <g id="face">
+            <path d="M168,104 Q178,125 184,142 Q170,130 158,110 Z M194,97 Q196,122 200,146 Q204,122 206,97 Z M232,104 Q222,125 216,142 Q230,130 242,110 Z" fill="#b65a1b"/>
+            <ellipse id="blushL" cx="122" cy="254" rx="17" ry="9" fill="#ff6f86" opacity="0"/>
+            <ellipse id="blushR" cx="278" cy="254" rx="17" ry="9" fill="#ff6f86" opacity="0"/>
+
+            <!-- eyes: normal -->
+            <g id="eyesOpen">
+              <ellipse cx="148" cy="205" rx="34" ry="35" fill="#3a1c0b"/>
+              <ellipse cx="252" cy="205" rx="34" ry="35" fill="#3a1c0b"/>
+              <g clip-path="url(#clipL)">
+                <ellipse cx="148" cy="205" rx="30" ry="31" fill="url(#irisG)"/>
+                <g id="pupL"><ellipse class="pupil" cx="148" cy="205" rx="8" ry="24" fill="#120804"/><circle cx="140" cy="192" r="5" fill="#fff" opacity=".9"/></g>
+                <g id="lidL"><rect x="100" y="91" width="96" height="80" fill="#e98b38"/><rect x="100" y="168" width="96" height="4" fill="#3a1c0b"/></g>
+              </g>
+              <g clip-path="url(#clipR)">
+                <ellipse cx="252" cy="205" rx="30" ry="31" fill="url(#irisG)"/>
+                <g id="pupR"><ellipse class="pupil" cx="252" cy="205" rx="8" ry="24" fill="#120804"/><circle cx="244" cy="192" r="5" fill="#fff" opacity=".9"/></g>
+                <g id="lidR"><rect x="204" y="91" width="96" height="80" fill="#e98b38"/><rect x="204" y="168" width="96" height="4" fill="#3a1c0b"/></g>
+              </g>
+            </g>
+            <!-- eyes: happy ^ ^ -->
+            <g id="eyesHappy" style="display:none" fill="none" stroke="#3a1c0b" stroke-width="7" stroke-linecap="round">
+              <path d="M122,214 Q148,186 174,214"/><path d="M226,214 Q252,186 278,214"/>
+            </g>
+            <!-- eyes: sleeping -->
+            <g id="eyesSleep" style="display:none" fill="none" stroke="#3a1c0b" stroke-width="6" stroke-linecap="round">
+              <path d="M122,206 Q148,224 174,206"/><path d="M226,206 Q252,224 278,206"/>
+            </g>
+            <!-- eyes: dizzy spirals -->
+            <g id="eyesDizzy" style="display:none">
+              <circle cx="148" cy="205" r="32" fill="#fff4e0"/><circle cx="252" cy="205" r="32" fill="#fff4e0"/>
+              <path id="spL" fill="none" stroke="#3a1c0b" stroke-width="4" stroke-linecap="round"/>
+              <path id="spR" fill="none" stroke="#3a1c0b" stroke-width="4" stroke-linecap="round"/>
+            </g>
+
+            <ellipse cx="178" cy="268" rx="30" ry="22" fill="#fbe2c2"/>
+            <ellipse cx="222" cy="268" rx="30" ry="22" fill="#fbe2c2"/>
+            <ellipse cx="200" cy="292" rx="22" ry="12" fill="#fbe2c2"/>
+
+            <g id="mouthOpen" style="display:none">
+              <ellipse cx="200" cy="284" rx="22" ry="17" fill="#5a1414"/>
+              <ellipse cx="200" cy="294" rx="12" ry="6" fill="#ff7c8f"/>
+              <path d="M184,270 L189,284 L193,270 Z M207,270 L211,284 L216,270 Z" fill="#fff"/>
+            </g>
+            <path id="tongue" style="display:none" d="M191,267 Q190,290 200,290 Q210,290 209,267 Z" fill="#ff7c8f" stroke="#d94f66" stroke-width="1.5"/>
+            <path id="mouth" d="M200,256 L200,266 M200,266 Q189,279 177,268 M200,266 Q211,279 223,268" fill="none" stroke="#3a1c0b" stroke-width="3.2" stroke-linecap="round"/>
+            <path id="nose" d="M186,242 Q200,236 214,242 Q207,255 200,258 Q193,255 186,242 Z" fill="#e8808c"/>
+
+            <g id="whiskers" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".85">
+              <path d="M160,268 L74,256 M160,274 L70,278 M162,280 L80,300"/>
+              <path d="M240,268 L326,256 M240,274 L330,278 M238,280 L320,300"/>
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+  </main>
+
+  <footer>
+    <div class="hints" id="hints"></div>
+    <div class="bar">
+      <span>погладили: <b id="cPet">0</b> · бупнули: <b id="cBoop">0</b></span>
+      <span>не тицяй 5 разів</span>
+    </div>
+  </footer>
+</div>
+
+<div id="fish" role="button" aria-label="Рибка — перетягни на кота">🐟<small>перетягни</small></div>
+
+<div class="gate" id="gate"><button id="wake">Розбудити кота 👆</button></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const cat = $('cat'), stage = $('stage'), bubbleEl = $('bubble'), glow = $('glow'), fish = $('fish');
+  const isTouch = matchMedia('(pointer: coarse)').matches;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  $('hints').innerHTML = (isTouch
+    ? ['📱 нахили телефон', '👃 тицьни в ніс', '✋ погладь', '🌀 потруси телефон', '🐟 дай рибку']
+    : ['🖱 води мишкою', '👃 клікни в ніс', '✋ затисни й погладь', '🌀 швидко потруси курсором', '🐟 дай рибку']
+  ).map(t => `<span>${t}</span>`).join('');
+
+  // ---------- storage (best effort) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : +v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+  const counts = { pet: store.get('cat.pet', 0), boop: store.get('cat.boop', 0) };
+  const renderCounts = () => { $('cPet').textContent = counts.pet; $('cBoop').textContent = counts.boop; };
+  renderCounts();
+
+  // ---------- audio ----------
+  let ac = null, soundOn = true, purrGain = null;
+  function initAudio() {
+    if (ac) return;
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
+      const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+      const am = ac.createGain(); am.gain.value = 0.5;
+      const lfo = ac.createOscillator(); lfo.frequency.value = 24;
+      const lfoAmt = ac.createGain(); lfoAmt.gain.value = 0.5;
+      lfo.connect(lfoAmt).connect(am.gain);
+      purrGain = ac.createGain(); purrGain.gain.value = 0;
+      src.connect(lp).connect(am).connect(purrGain).connect(ac.destination);
+      src.start(); lfo.start();
+    } catch { ac = null; }
+  }
+  function noiseBurst(dur, type, freq, vol) {
+    if (!ac || !soundOn) return;
+    const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const s = ac.createBufferSource(); s.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = ac.createGain(); const t = ac.currentTime;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f).connect(g).connect(ac.destination); s.start();
+  }
+  function blip(f1, f2, dur, vol = .25, wave = 'sine') {
+    if (!ac || !soundOn) return;
+    const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+    o.type = wave; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(); o.stop(t + dur);
+  }
+  function meow() { // short synthetic "mew"
+    if (!ac || !soundOn) return;
+    const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain(), t = ac.currentTime;
+    o.type = 'sawtooth'; f.type = 'bandpass'; f.Q.value = 6;
+    o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(820, t + .12); o.frequency.linearRampToValueAtTime(480, t + .45);
+    f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(1800, t + .15); f.frequency.linearRampToValueAtTime(700, t + .45);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .05); g.gain.exponentialRampToValueAtTime(0.001, t + .5);
+    o.connect(f).connect(g).connect(ac.destination); o.start(); o.stop(t + .5);
+  }
+  function setPurr(on) {
+    if (!purrGain) return;
+    purrGain.gain.setTargetAtTime(on && soundOn ? 0.9 : 0, ac.currentTime, 0.12);
+  }
+  $('sound').onclick = () => { soundOn = !soundOn; $('sound').textContent = soundOn ? '🔊' : '🔇'; if (!soundOn) setPurr(false); };
+
+  // ---------- state ----------
+  const S = {
+    state: 'sleep', until: 0,
+    target: { x: 0, y: 0 }, cur: { x: 0, y: 0 },
+    lid: 1, lidT: 1, blink: 0, pupW: 8, pupWT: 8, ear: 10, earT: 10, blush: 0,
+    lastActive: performance.now(), lastInput: 0, taps: [], fishDrag: false,
+  };
+  function setState(name, ms = 0) {
+    S.state = name; S.until = ms ? performance.now() + ms : 0;
+    setPurr(name === 'purr');
+  }
+  function activity() {
+    const now = performance.now();
+    if (S.state === 'sleep' && !gateOpen) { setState('startle', 700); say('!!', 700); meow(); }
+    S.lastActive = now;
+  }
+
+  // ---------- bubble & fx ----------
+  let bubbleTimer;
+  function say(text, ms = 1400) {
+    bubbleEl.textContent = text; bubbleEl.classList.add('on');
+    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => bubbleEl.classList.remove('on'), ms);
+  }
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  function fx(char, x, y, color, size = 26) {
+    const el = document.createElement('div');
+    el.className = 'fx'; el.textContent = char;
+    el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.color = color; el.style.fontSize = size + 'px';
+    el.style.setProperty('--dx', (Math.random() * 80 - 40) + 'px');
+    el.style.setProperty('--rot', (Math.random() * 40 - 20) + 'deg');
+    document.body.appendChild(el); setTimeout(() => el.remove(), 1700);
+  }
+  const headRect = () => cat.getBoundingClientRect();
+  function headTop() { const r = headRect(); return { x: r.left + r.width / 2, y: r.top + r.height * .25, w: r.width }; }
+
+  // ---------- geometry helpers ----------
+  const clamp = (v, a = -1, b = 1) => Math.max(a, Math.min(b, v));
+  function lookAt(px, py) {
+    const r = headRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height * .52;
+    S.target.x = clamp((px - cx) / (innerWidth * .45));
+    S.target.y = clamp((py - cy) / (innerHeight * .45));
+  }
+  function inHead(px, py) {
+    const r = headRect();
+    const x = (px - r.left) / r.width * 400, y = (py - r.top) / r.height * 400;
+    return y > 60 && y < 345 && x > 45 && x < 355;
+  }
+  function onNose(px, py) {
+    const n = $('nose').getBoundingClientRect(), pad = Math.max(18, n.width * .6);
+    return px > n.left - pad && px < n.right + pad && py > n.top - pad && py < n.bottom + pad * .8;
+  }
+
+  // ---------- reactions ----------
+  function annoyed(px) {
+    const now = performance.now();
+    S.taps = S.taps.filter(t => now - t < 3000); S.taps.push(now);
+    if (S.taps.length >= 5) {
+      S.taps = [];
+      setState('angry', 1500); say('ШШШШ!', 1500);
+      noiseBurst(.7, 'highpass', 2500, .5);
+      stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+      navigator.vibrate?.([60, 40, 90]);
+      return;
+    }
+    const r = headRect();
+    S.awayDir = px < r.left + r.width / 2 ? 1 : -1;
+    setState('annoyed', 1300);
+    say(pick(['Руки.', 'Ти хто взагалі?', 'Пффф.', 'Я це запамʼятаю.', 'Не чіпай.', 'Ще раз — і все.']));
+    blip(300, 180, .15, .2, 'triangle');
+  }
+  function boop() {
+    counts.boop++; store.set('cat.boop', counts.boop); renderCounts();
+    setState('blep', 1300); say(pick(['буп!', 'блеп.', '*чих*', 'ой.']), 1100);
+    blip(900, 1500, .12, .25);
+    navigator.vibrate?.(20);
+  }
+  function dizzy() {
+    setState('dizzy', 2400); say(pick(['мяу...?', 'де я?', 'земля, стій', 'я бачу двох тебе']), 2000);
+    blip(700, 200, .6, .15, 'triangle');
+  }
+  function eat() {
+    setState('eat', 1800); say('НЯМ.', 1200);
+    let n = 0; const iv = setInterval(() => { noiseBurst(.08, 'bandpass', 1200, .4); if (++n > 5) clearInterval(iv); }, 220);
+    setTimeout(() => { setState('purr', 1600); say('мрррр', 1300); const h = headTop(); for (let i = 0; i < 6; i++) setTimeout(() => fx('❤', h.x + (Math.random() - .5) * h.w * .6, h.y, '#ff5d7a'), i * 120); }, 1800);
+  }
+
+  // ---------- pointer on cat: tap / stroke ----------
+  let press = null, purrStop;
+  cat.addEventListener('pointerdown', (e) => {
+    if (gateOpen) return;
+    activity();
+    press = { x: e.clientX, y: e.clientY, t: performance.now(), dist: 0, lx: e.clientX, ly: e.clientY, petting: false, nose: onNose(e.clientX, e.clientY) };
+    cat.setPointerCapture(e.pointerId);
+  });
+  cat.addEventListener('pointermove', (e) => {
+    if (!press) return;
+    press.dist += Math.hypot(e.clientX - press.lx, e.clientY - press.ly);
+    press.lx = e.clientX; press.ly = e.clientY;
+    if (press.dist > 50 && inHead(e.clientX, e.clientY)) {
+      if (!press.petting) { press.petting = true; counts.pet++; store.set('cat.pet', counts.pet); renderCounts(); say('мрррр', 1600); }
+      if (S.state !== 'angry' && S.state !== 'dizzy') setState('purr');
+      if (Math.random() < .12) fx('❤', e.clientX, e.clientY - 20, '#ff5d7a', 20 + Math.random() * 14);
+      if (Math.random() < .05) navigator.vibrate?.(15);
+      clearTimeout(purrStop);
+      purrStop = setTimeout(() => { if (S.state === 'purr') setState('idle'); }, 800);
+    }
+  });
+  const release = (e) => {
+    if (!press) return;
+    const quick = performance.now() - press.t < 450 && press.dist < 14;
+    if (quick && press.nose) boop();
+    else if (quick && inHead(e.clientX, e.clientY)) annoyed(e.clientX);
+    if (press.petting) { clearTimeout(purrStop); purrStop = setTimeout(() => { if (S.state === 'purr') setState('idle'); }, 900); }
+    press = null;
+  };
+  cat.addEventListener('pointerup', release);
+  cat.addEventListener('pointercancel', () => { press = null; });
+
+  // ---------- global pointer: follow + desktop shake ----------
+  let wig = { lx: null, lt: 0, dir: 0, flips: [] };
+  addEventListener('pointermove', (e) => {
+    if (gateOpen) return;
+    if (e.pointerType === 'mouse' || e.buttons) { lookAt(e.clientX, e.clientY); S.lastInput = performance.now(); activity(); }
+    if (e.pointerType === 'mouse') {
+      const now = performance.now();
+      if (wig.lx != null) {
+        const v = (e.clientX - wig.lx) / Math.max(1, now - wig.lt);
+        const d = Math.sign(v);
+        if (Math.abs(v) > 2.2 && d !== wig.dir) { wig.dir = d; wig.flips.push(now); }
+        wig.flips = wig.flips.filter(t => now - t < 900);
+        if (wig.flips.length >= 6 && S.state !== 'dizzy') { wig.flips = []; dizzy(); }
+      }
+      wig.lx = e.clientX; wig.lt = now;
+    }
+  });
+
+  // ---------- gyro + shake ----------
+  let baseBeta = null, lastG = null;
+  function onOrient(e) {
+    if (e.gamma == null || gateOpen) return;
+    if (baseBeta == null) baseBeta = e.beta;
+    if (performance.now() - S.lastInput < 1500 && !S.fishDrag) {} // pointer recently used: let it lead
+    else if (!S.fishDrag) {
+      S.target.x = clamp(e.gamma / 28);
+      S.target.y = clamp((e.beta - baseBeta) / 22);
+    }
+    if (lastG && (Math.abs(e.gamma - lastG.g) > 1.5 || Math.abs(e.beta - lastG.b) > 1.5)) activity();
+    lastG = { g: e.gamma, b: e.beta };
+  }
+  let jolts = [], prevA = null;
+  function onMotion(e) {
+    const a = e.accelerationIncludingGravity; if (!a || a.x == null || gateOpen) return;
+    if (prevA) {
+      const d = Math.abs(a.x - prevA.x) + Math.abs(a.y - prevA.y) + Math.abs(a.z - prevA.z);
+      const now = performance.now();
+      if (d > 28) { jolts.push(now); }
+      jolts = jolts.filter(t => now - t < 1000);
+      if (jolts.length >= 4 && S.state !== 'dizzy') { jolts = []; dizzy(); }
+    }
+    prevA = { x: a.x, y: a.y, z: a.z };
+  }
+  async function enableSensors() {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+        await DeviceOrientationEvent.requestPermission();
+      }
+      if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+        await DeviceMotionEvent.requestPermission();
+      }
+    } catch {}
+    addEventListener('deviceorientation', onOrient);
+    addEventListener('devicemotion', onMotion);
+  }
+
+  // ---------- fish drag ----------
+  let fishHome = null;
+  fish.addEventListener('pointerdown', (e) => {
+    if (gateOpen) return;
+    e.preventDefault(); activity();
+    S.fishDrag = true; fish.classList.add('drag'); fish.setPointerCapture(e.pointerId);
+    fishHome = fish.getBoundingClientRect();
+    if (S.state !== 'angry') setState('watch');
+    say(pick(['О.', 'ЦЕ МЕНІ?', 'дай.']), 900);
+    moveFish(e);
+  });
+  function moveFish(e) {
+    fish.style.left = (e.clientX - 32) + 'px'; fish.style.top = (e.clientY - 32) + 'px';
+    fish.style.right = 'auto'; fish.style.bottom = 'auto';
+    lookAt(e.clientX, e.clientY); S.lastInput = performance.now();
+  }
+  fish.addEventListener('pointermove', (e) => { if (S.fishDrag) moveFish(e); });
+  fish.addEventListener('pointerup', (e) => {
+    if (!S.fishDrag) return;
+    S.fishDrag = false; fish.classList.remove('drag');
+    const resetPos = () => { fish.style.left = fish.style.top = fish.style.right = fish.style.bottom = ''; };
+    if (inHead(e.clientX, e.clientY)) {
+      fish.classList.add('gone'); resetPos(); eat();
+      setTimeout(() => fish.classList.remove('gone'), 4000);
+    } else {
+      resetPos(); setState('idle'); say('...ну й не треба.', 1200);
+    }
+  });
+
+  // ---------- gate ----------
+  let gateOpen = true;
+  $('wake').addEventListener('click', async () => {
+    initAudio(); try { await ac?.resume(); } catch {}
+    await enableSensors();
+    $('gate').classList.add('hide'); gateOpen = false;
+    setState('startle', 900); meow();
+    setTimeout(() => say(pick(['ну шо?', 'ти хто?', 'чого будиш?']), 1600), 350);
+    S.lastActive = performance.now();
+  });
+
+  // ---------- spirals ----------
+  function spiral(cx, cy) {
+    let d = '';
+    for (let i = 0; i <= 90; i++) { const t = i / 90 * Math.PI * 6, r = 26 * i / 90; d += (i ? 'L' : 'M') + (cx + r * Math.cos(t)).toFixed(1) + ',' + (cy + r * Math.sin(t)).toFixed(1); }
+    return d;
+  }
+  $('spL').setAttribute('d', spiral(148, 205)); $('spR').setAttribute('d', spiral(252, 205));
+
+  // ---------- render loop ----------
+  const el = { head: $('head'), face: $('face'), body: $('body'), earL: $('earL'), earR: $('earR'), pupL: $('pupL'), pupR: $('pupR'), lidL: $('lidL'), lidR: $('lidR'),
+    eyesOpen: $('eyesOpen'), eyesHappy: $('eyesHappy'), eyesSleep: $('eyesSleep'), eyesDizzy: $('eyesDizzy'), spL: $('spL'), spR: $('spR'),
+    mouthOpen: $('mouthOpen'), tongue: $('tongue'), mouth: $('mouth'), blushL: $('blushL'), blushR: $('blushR') };
+  const pupils = [...cat.querySelectorAll('.pupil')];
+  const show = (node, on) => { node.style.display = on ? '' : 'none'; };
+  let nextBlink = performance.now() + 2500, nextTwitch = performance.now() + 4000, twitch = 0, lastZ = 0;
+
+  function frame(now) {
+    if (S.until && now > S.until) setState('idle');
+    if (S.state === 'idle' && !gateOpen && now - S.lastActive > 10000) { setState('sleep'); say('zzz', 1200); }
+
+    const st = S.state;
+    let tx = S.target.x, ty = S.target.y;
+    if (st === 'annoyed') { tx = (S.awayDir || 1) * 0.95; ty = -0.55; }
+    if (st === 'sleep') { tx = 0; ty = 0.55 + Math.sin(now / 900) * 0.04; }
+    if (st === 'angry') { tx *= .3; ty = 0.15; }
+
+    const k = st === 'startle' ? .3 : .11;
+    S.cur.x += (tx - S.cur.x) * k; S.cur.y += (ty - S.cur.y) * k;
+    const x = S.cur.x, y = S.cur.y;
+
+    // eyes mode
+    show(el.eyesOpen, !['purr', 'sleep', 'dizzy'].includes(st));
+    show(el.eyesHappy, st === 'purr');
+    show(el.eyesSleep, st === 'sleep');
+    show(el.eyesDizzy, st === 'dizzy');
+    show(el.mouthOpen, st === 'angry' || st === 'eat');
+    show(el.tongue, st === 'blep');
+
+    // lids / pupils / ears targets
+    const L = { idle: 0, watch: 0, startle: 0, annoyed: .5, angry: .32, eat: .15, blep: .1 };
+    S.lidT = L[st] ?? 0;
+    const P = { idle: 8, watch: 17, startle: 3.5, annoyed: 6, angry: 2.5, eat: 17, blep: 12 };
+    S.pupWT = P[st] ?? 8;
+    const E = { idle: 0, watch: -8, startle: -12, annoyed: 18, angry: 42, sleep: 12, purr: 4, dizzy: 22, eat: -4, blep: 0 };
+    S.earT = E[st] ?? 0;
+
+    if (now > nextBlink && (st === 'idle' || st === 'watch')) { S.blink = 1; nextBlink = now + 2200 + Math.random() * 3800; }
+    S.blink *= .78;
+    S.lid += (S.lidT - S.lid) * .2;
+    const lid = Math.min(1, S.lid + S.blink);
+    S.pupW += (S.pupWT - S.pupW) * .15;
+    S.ear += (S.earT - S.ear) * .15;
+    if (now > nextTwitch) { twitch = 1; nextTwitch = now + 3000 + Math.random() * 5000; }
+    twitch *= .85;
+    S.blush += ((st === 'purr' || st === 'blep' || st === 'eat' ? .75 : 0) - S.blush) * .1;
+
+    // dizzy wobble
+    let wob = 0, wobX = 0;
+    if (st === 'dizzy') { wob = Math.sin(now / 110) * 9; wobX = Math.sin(now / 160) * 10; }
+    const breathe = Math.sin(now / (st === 'sleep' ? 1100 : 700)) * (st === 'sleep' ? .02 : .008);
+    const purrJ = st === 'purr' ? Math.sin(now / 22) * .6 : 0;
+    const angryJ = st === 'angry' ? (Math.random() - .5) * 3 : 0;
+
+    el.body.setAttribute('transform', `translate(${x * 4} 0) translate(200 400) scale(1 ${1 + breathe}) translate(-200 -400)`);
+    el.head.setAttribute('transform', `translate(${x * 12 + wobX + angryJ} ${y * 9 + purrJ + breathe * 120}) rotate(${x * 5 + wob} 200 230)`);
+    el.face.setAttribute('transform', `translate(${x * 18} ${y * 14})`);
+    el.earL.setAttribute('transform', `translate(${-x * 5} ${-y * 3}) rotate(${-S.ear - twitch * 8} 118 150)`);
+    el.earR.setAttribute('transform', `translate(${-x * 5} ${-y * 3}) rotate(${S.ear} 282 150)`);
+    const px = x * 10, py = y * 8;
+    el.pupL.setAttribute('transform', `translate(${px} ${py})`);
+    el.pupR.setAttribute('transform', `translate(${px} ${py})`);
+    pupils.forEach(p => p.setAttribute('rx', S.pupW.toFixed(2)));
+    const slant = st === 'angry' ? 16 : st === 'annoyed' ? 0 : 0;
+    el.lidL.setAttribute('transform', `rotate(${slant} 148 205) translate(0 ${lid * 70})`);
+    el.lidR.setAttribute('transform', `rotate(${-slant} 252 205) translate(0 ${lid * 70})`);
+    el.blushL.setAttribute('opacity', S.blush.toFixed(2)); el.blushR.setAttribute('opacity', S.blush.toFixed(2));
+    if (st === 'dizzy') { el.spL.setAttribute('transform', `rotate(${now / 3 % 360} 148 205)`); el.spR.setAttribute('transform', `rotate(${-now / 3 % 360} 252 205)`); }
+    if (st === 'eat') el.mouthOpen.setAttribute('transform', `translate(200 270) scale(1 ${0.25 + Math.abs(Math.sin(now / 70)) * .75}) translate(-200 -270)`);
+    else el.mouthOpen.removeAttribute('transform');
+
+    if (st === 'sleep' && now - lastZ > 1300) { lastZ = now; const h = headTop(); fx('z', h.x + h.w * .22, h.y, '#f7ecdf', 22 + Math.random() * 12); }
+
+    glow.style.setProperty('--gx', (50 + x * 8) + '%');
+    glow.style.setProperty('--gy', (58 + y * 6) + '%');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // initial: sleeping behind the gate
+  setState('sleep');
+})();
+</script>
+</body>
+</html>
