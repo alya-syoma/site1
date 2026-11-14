@@ -110,6 +110,7 @@
   }
   @keyframes pulse { 50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(255,106,31,.7) } }
   .gate.hide { display: none; }
+  [hidden] { display: none !important; }
   @media (prefers-reduced-motion: reduce) { .gate button { animation: none } }
 </style>
 </head>
@@ -120,7 +121,10 @@
 <div class="stage" id="stage">
   <header>
     <div class="tag">кіт_<b>онлайн</b> · стежить</div>
-    <button class="icon-btn" id="sound" aria-label="Звук">🔊</button>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="tilt" hidden>📱 увімкнути нахил</button>
+      <button class="icon-btn" id="sound" aria-label="Звук">🔊</button>
+    </div>
   </header>
 
   <main>
@@ -444,7 +448,9 @@
   // ---------- gyro + shake ----------
   let baseBeta = null, lastG = null;
   function onOrient(e) {
-    if (e.gamma == null || gateOpen) return;
+    if (e.gamma == null) return;
+    sensorSeen = true;
+    if (gateOpen) return;
     if (baseBeta == null) baseBeta = e.beta;
     if (performance.now() - S.lastInput < 1500 && !S.fishDrag) {} // pointer recently used: let it lead
     else if (!S.fishDrag) {
@@ -454,29 +460,44 @@
     if (lastG && (Math.abs(e.gamma - lastG.g) > 1.5 || Math.abs(e.beta - lastG.b) > 1.5)) activity();
     lastG = { g: e.gamma, b: e.beta };
   }
-  let jolts = [], prevA = null;
+  let jolts = [], lastJolt = 0;
   function onMotion(e) {
-    const a = e.accelerationIncludingGravity; if (!a || a.x == null || gateOpen) return;
-    if (prevA) {
-      const d = Math.abs(a.x - prevA.x) + Math.abs(a.y - prevA.y) + Math.abs(a.z - prevA.z);
-      const now = performance.now();
-      if (d > 28) { jolts.push(now); }
-      jolts = jolts.filter(t => now - t < 1000);
-      if (jolts.length >= 4 && S.state !== 'dizzy') { jolts = []; dizzy(); }
-    }
-    prevA = { x: a.x, y: a.y, z: a.z };
+    if (gateOpen && sensorSeen) return;
+    const a = e.acceleration, g = e.accelerationIncludingGravity;
+    let m = 0;
+    if (a && a.x != null) m = Math.hypot(a.x, a.y, a.z);
+    else if (g && g.x != null) m = Math.abs(Math.hypot(g.x, g.y, g.z) - 9.81);
+    else return;
+    sensorSeen = true;
+    if (gateOpen) return;
+    const now = performance.now();
+    if (m > 11 && now - lastJolt > 110) { lastJolt = now; jolts.push(now); activity(); }
+    jolts = jolts.filter(t => now - t < 1300);
+    if (jolts.length >= 3 && S.state !== 'dizzy') { jolts = []; dizzy(); }
   }
-  async function enableSensors() {
-    try {
-      if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-        await DeviceOrientationEvent.requestPermission();
-      }
-      if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
-        await DeviceMotionEvent.requestPermission();
-      }
-    } catch {}
-    addEventListener('deviceorientation', onOrient);
-    addEventListener('devicemotion', onMotion);
+  // iOS: requestPermission() must be called synchronously inside the tap handler,
+  // before any await, or Safari silently refuses.
+  let sensorSeen = false, listening = false;
+  function enableSensors() {
+    const reqs = [];
+    try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') reqs.push(DeviceOrientationEvent.requestPermission().catch(() => 'denied')); } catch {}
+    try { if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') reqs.push(DeviceMotionEvent.requestPermission().catch(() => 'denied')); } catch {}
+    if (!listening) {
+      listening = true;
+      addEventListener('deviceorientation', onOrient);
+      addEventListener('devicemotion', onMotion);
+    }
+    return Promise.all(reqs);
+  }
+  const tiltBtn = $('tilt');
+  tiltBtn.addEventListener('click', () => {
+    enableSensors().then(() => setTimeout(checkSensors, 1200));
+  });
+  function checkSensors() {
+    if (!isTouch) return;
+    if (sensorSeen) { tiltBtn.hidden = true; return; }
+    tiltBtn.hidden = false;
+    say('не відчуваю нахилу 🙁', 2200);
   }
 
   // ---------- fish drag ----------
@@ -510,9 +531,10 @@
 
   // ---------- gate ----------
   let gateOpen = true;
-  $('wake').addEventListener('click', async () => {
-    initAudio(); try { await ac?.resume(); } catch {}
-    await enableSensors();
+  $('wake').addEventListener('click', () => {
+    enableSensors(); // first, synchronously, while the tap still counts
+    initAudio(); try { ac?.resume(); } catch {}
+    setTimeout(checkSensors, 2500);
     $('gate').classList.add('hide'); gateOpen = false;
     setState('startle', 900); meow();
     setTimeout(() => say(pick(['ну шо?', 'ти хто?', 'чого будиш?']), 1600), 350);
